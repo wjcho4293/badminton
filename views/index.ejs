@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>스마트 배드민턴 매칭 & 랭킹</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-50 flex items-center justify-center p-4 font-sans">
+
+  <div class="w-full max-w-md bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 flex flex-col h-[90vh] max-h-[850px] relative">
+
+    <% if (currentView === 'main') { %>
+      <!-- 헤더 -->
+      <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white flex justify-between items-center">
+        <div class="truncate pr-2">
+          <span class="text-xs text-emerald-100 font-semibold uppercase tracking-wider block truncate"><%= currentMeetup ? currentMeetup.title : '모임 선택' %></span>
+          <h1 class="text-xl font-bold mt-0.5 truncate">스마트 매칭 & 랭킹</h1>
+        </div>
+        <div class="shrink-0">
+          <% if (currentUser) { %>
+            <div class="flex items-center gap-2">
+              <span class="text-xs bg-white/25 px-2.5 py-1 rounded-full font-medium"><%= currentUser.carrot_nickname %>님</span>
+              <a href="/auth/logout" class="text-[11px] bg-white/10 hover:bg-white/25 px-2 py-1 rounded-lg transition">로그아웃</a>
+            </div>
+          <% } else { %>
+            <a href="/?view=auth" class="text-xs bg-white text-emerald-700 font-bold px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-emerald-50 transition">
+              로그인 / 가입
+            </a>
+          <% } %>
+        </div>
+      </div>
+
+      <!-- 상단 5개 탭 메뉴 -->
+      <div class="flex border-b border-gray-100 bg-gray-50/50">
+        <a href="/?tab=list" class="flex-1 py-3 text-[11px] font-bold text-center border-b-2 transition-all <%= activeTab === 'list' ? 'border-emerald-600 text-emerald-600 bg-white' : 'border-transparent text-gray-400' %>">목록</a>
+        <a href="/?tab=courts" class="flex-1 py-3 text-[11px] font-bold text-center border-b-2 transition-all <%= activeTab === 'courts' ? 'border-emerald-600 text-emerald-600 bg-white' : 'border-transparent text-gray-400' %>">코트 현황</a>
+        <a href="/?tab=global_chat" class="flex-1 py-3 text-[11px] font-bold text-center border-b-2 transition-all <%= activeTab === 'global_chat' ? 'border-emerald-600 text-emerald-600 bg-white' : 'border-transparent text-gray-400' %>">전체채팅</a>
+        <a href="/?tab=ranking" class="flex-1 py-3 text-[11px] font-bold text-center border-b-2 transition-all <%= activeTab === 'ranking' ? 'border-emerald-600 text-emerald-600 bg-white' : 'border-transparent text-gray-400' %>">랭킹</a>
+        <a href="/?tab=profile" class="flex-1 py-3 text-[11px] font-bold text-center border-b-2 transition-all <%= activeTab === 'profile' ? 'border-emerald-600 text-emerald-600 bg-white' : 'border-transparent text-gray-400' %>">내 프로필</a>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-4 flex-1">
+
+        <!-- 1. 모임 목록 탭 -->
+        <% if (activeTab === 'list') { %>
+          <div class="space-y-4">
+            <a href="/?view=create_meetup" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-xs shadow flex items-center justify-center gap-1 block text-center">
+              + 새 모임 만들기
+            </a>
+
+            <div class="text-xs text-gray-500 mb-1">💡 모임을 클릭하거나 '확인'을 눌러 상세 현황으로 진입하세요.</div>
+
+            <% 
+              const recruitingMeetups = meetups.filter(m => m.status !== 'ended');
+              const endedMeetups = meetups.filter(m => m.status === 'ended');
+            %>
+
+            <div class="space-y-3">
+              <h3 class="text-xs font-bold text-gray-700 px-1">🏸 모집 / 진행 중인 모임</h3>
+              <% if (recruitingMeetups.length > 0) { %>
+                <% recruitingMeetups.forEach(m => { %>
+                  <% const isJoined = currentUser && joinedMeetupIds.includes(m.id); %>
+                  <div class="p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer hover:border-emerald-400 <%= m.id === (currentMeetup ? currentMeetup.id : 0) ? 'bg-emerald-50/60 border-emerald-300 shadow-sm' : 'bg-white border-gray-200' %>" onclick="location.href='/?meetupId=<%= m.id %>&view=meetup_detail'">
+                    <div class="flex-1 pr-2">
+                      <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                        <span class="font-bold text-gray-800 text-sm"><%= m.title %></span>
+                        <% if(isJoined) { %>
+                          <span class="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">참여중</span>
+                        <% } %>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold <%= m.status === 'recruiting' || m.status === 'upcoming' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700' %>">
+                          <%= m.status === 'recruiting' || m.status === 'upcoming' ? '모집중' : '진행 중' %>
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-1">📅 <%= m.date %> · 📍 <%= m.location %></p>
+                      <p class="text-[11px] text-gray-400 mt-0.5">코트: <%= m.courtCount %>개 | 정원: <%= m.maxPeople %>명 | 참여자: <strong class="text-emerald-600"><%= memberCountMap[m.id] || 0 %>명</strong> | 참가비: <%= m.fee %></p>
+                      <% if (m.note) { %>
+                        <p class="text-[10px] text-emerald-600 mt-1 bg-emerald-50 px-2 py-0.5 rounded-md inline-block">📌 비고: <%= m.note %></p>
+                      <% } %>
+                    </div>
+                    <div class="shrink-0 ml-2" onclick="event.stopPropagation();">
+                      <a href="/?meetupId=<%= m.id %>&view=meetup_detail" class="bg-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-emerald-700 shadow-sm block whitespace-nowrap">확인</a>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="bg-white p-4 rounded-2xl border border-gray-200 text-center text-xs text-gray-400">모집 중인 모임이 없습니다.</div>
+              <% } %>
+            </div>
+
+            <div class="space-y-3 pt-2">
+              <h3 class="text-xs font-bold text-gray-700 px-1">🏁 모임 완료된 목록</h3>
+              <% if (endedMeetups.length > 0) { %>
+                <% endedMeetups.forEach(m => { %>
+                  <% const isJoined = currentUser && joinedMeetupIds.includes(m.id); %>
+                  <div class="p-4 rounded-2xl border transition-all flex items-center justify-between cursor-pointer hover:border-gray-400 bg-gray-50 border-gray-200 opacity-80" onclick="location.href='/?meetupId=<%= m.id %>&view=meetup_detail'">
+                    <div class="flex-1 pr-2">
+                      <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                        <span class="font-bold text-gray-700 text-sm"><%= m.title %></span>
+                        <% if(isJoined) { %>
+                          <span class="bg-gray-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">참여함</span>
+                        <% } %>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-gray-200 text-gray-600">
+                          모임 완료
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-400 mt-1">📅 <%= m.date %> · 📍 <%= m.location %></p>
+                      <p class="text-[11px] text-gray-400 mt-0.5">코트: <%= m.courtCount %>개 | 정원: <%= m.maxPeople %>명 | 참여자: <strong class="text-gray-600"><%= memberCountMap[m.id] || 0 %>명</strong> | 참가비: <%= m.fee %></p>
+                    </div>
+                    <div class="shrink-0 ml-2" onclick="event.stopPropagation();">
+                      <a href="/?meetupId=<%= m.id %>&view=meetup_detail" class="bg-gray-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-gray-700 shadow-sm block whitespace-nowrap">확인</a>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="bg-white p-4 rounded-2xl border border-gray-200 text-center text-xs text-gray-400">완료된 모임이 없습니다.</div>
+              <% } %>
+            </div>
+
+          </div>
+        <% } %>
+
+        <!-- 2. 코트 현황 탭 -->
+        <% if (activeTab === 'courts') { %>
+          <% if (isCourtSelect) { %>
+            <div class="space-y-4">
+              <div>
+                <h2 class="text-base font-bold text-gray-800">코트 현황 - 모임 선택</h2>
+                <p class="text-xs text-gray-500 mt-0.5">확인하고자 하는 모임을 선택해주세요.</p>
+              </div>
+
+              <% 
+                const recruitingMeetups = meetups.filter(m => m.status !== 'ended');
+                const endedMeetups = meetups.filter(m => m.status === 'ended');
+              %>
+
+              <div class="space-y-3">
+                <h3 class="text-xs font-bold text-gray-700 px-1">🏸 모집 / 진행 중인 모임</h3>
+                <% if (recruitingMeetups.length > 0) { %>
+                  <% recruitingMeetups.forEach(m => { %>
+                    <% const isJoined = currentUser && joinedMeetupIds.includes(m.id); %>
+                    <div onclick="location.href='/?meetupId=<%= m.id %>&tab=courts'" class="p-4 rounded-2xl border transition-all cursor-pointer hover:border-emerald-400 <%= m.id === (currentMeetup ? currentMeetup.id : 0) ? 'bg-emerald-50/60 border-emerald-300 shadow-sm' : 'bg-white border-gray-200' %>">
+                      <div class="flex justify-between items-center flex-wrap gap-y-1">
+                        <div class="flex items-center space-x-2">
+                          <span class="font-bold text-gray-800 text-sm"><%= m.title %></span>
+                          <% if(isJoined) { %>
+                            <span class="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">참여중</span>
+                          <% } %>
+                        </div>
+                        <span class="text-[10px] px-2.5 py-0.5 rounded-full font-bold <%= m.status === 'recruiting' || m.status === 'upcoming' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700' %>">
+                          <%= m.status === 'recruiting' || m.status === 'upcoming' ? '모집중' : '진행 중' %>
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-500 mt-1">📅 <%= m.date %> · 📍 <%= m.location %></p>
+                      <p class="text-[11px] text-gray-400 mt-0.5">코트: <%= m.courtCount %>개 | 정원: <%= m.maxPeople %>명 | 참여자: <strong class="text-emerald-600"><%= memberCountMap[m.id] || 0 %>명</strong> | 참가비: <%= m.fee %></p>
+                    </div>
+                  <% }) %>
+                <% } else { %>
+                  <div class="bg-white p-4 rounded-2xl border border-gray-200 text-center text-xs text-gray-400">모집 중인 모임이 없습니다.</div>
+                <% } %>
+              </div>
+
+              <div class="space-y-3 pt-2">
+                <h3 class="text-xs font-bold text-gray-700 px-1">🏁 모임 완료된 목록</h3>
+                <% if (endedMeetups.length > 0) { %>
+                  <% endedMeetups.forEach(m => { %>
+                    <% const isJoined = currentUser && joinedMeetupIds.includes(m.id); %>
+                    <div onclick="location.href='/?meetupId=<%= m.id %>&tab=courts'" class="p-4 rounded-2xl border transition-all cursor-pointer hover:border-gray-400 bg-gray-50 border-gray-200 opacity-80">
+                      <div class="flex justify-between items-center flex-wrap gap-y-1">
+                        <div class="flex items-center space-x-2">
+                          <span class="font-bold text-gray-700 text-sm"><%= m.title %></span>
+                          <% if(isJoined) { %>
+                            <span class="bg-gray-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold whitespace-nowrap">참여함</span>
+                          <% } %>
+                        </div>
+                        <span class="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-gray-200 text-gray-600">
+                          모임 완료
+                        </span>
+                      </div>
+                      <p class="text-xs text-gray-400 mt-1">📅 <%= m.date %> · 📍 <%= m.location %></p>
+                      <p class="text-[11px] text-gray-400 mt-0.5">코트: <%= m.courtCount %>개 | 정원: <%= m.maxPeople %>명 | 참여자: <strong class="text-gray-600"><%= memberCountMap[m.id] || 0 %>명</strong> | 참가비: <%= m.fee %></p>
+                    </div>
+                  <% }) %>
+                <% } else { %>
+                  <div class="bg-white p-4 rounded-2xl border border-gray-200 text-center text-xs text-gray-400">완료된 모임이 없습니다.</div>
+                <% } %>
+              </div>
+            </div>
+          <% } else { %>
+            <% if (!currentMeetup) { %>
+              <div class="text-center py-10 text-gray-400 text-xs">선택된 모임이 없습니다.</div>
+            <% } else { %>
+              <% 
+                const playingNames = new Set();
+                courts.forEach(c => {
+                  if(c.teamA_p1 !== '-') playingNames.add(c.teamA_p1);
+                  if(c.teamA_p2 !== '-') playingNames.add(c.teamA_p2);
+                  if(c.teamB_p1 !== '-') playingNames.add(c.teamB_p1);
+                  if(c.teamB_p2 !== '-') playingNames.add(c.teamB_p2);
+                });
+                const waitingMembers = members.filter(m => m.attended === 1 && !playingNames.has(m.name));
+
+                const memberMap = {};
+                if (members) {
+                  members.forEach(m => { memberMap[m.name] = m; });
+                }
+                const isDuoPair = (p1, p2) => {
+                  if (!p1 || !p2 || p1 === '-' || p2 === '-') return false;
+                  const m1 = memberMap[p1];
+                  const m2 = memberMap[p2];
+                  return m1 && m2 && m1.duoPartnerId === m2.id;
+                };
+              %>
+              <div class="space-y-4">
+                <div class="mb-2">
+                  <a href="/?tab=courts" class="text-xs text-emerald-600 font-bold hover:underline">← 모임 선택으로 돌아가기</a>
+                </div>
+
+                <div class="flex justify-between items-center bg-gray-50 p-3 rounded-2xl border border-gray-200">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-700 whitespace-nowrap">
+                      <%= currentMeetup.status === 'recruiting' || currentMeetup.status === 'upcoming' ? '모집중' : currentMeetup.status === 'ongoing' ? '진행 중' : '모임 완료' %>
+                    </span>
+                    <span class="text-xs text-gray-500 whitespace-nowrap">참여자: <strong class="text-emerald-600"><%= members.length %>명</strong></span>
+                  </div>
+                  <div class="flex items-center gap-1.5">
+                    <a href="/?meetupId=<%= currentMeetup.id %>&view=meetup_detail" class="bg-white border border-gray-300 text-gray-600 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm whitespace-nowrap">
+                      ℹ️ 모임 정보
+                    </a>
+                    <% if (canManage) { %>
+                      <a href="/?meetupId=<%= currentMeetup.id %>&view=admin_attendance" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm whitespace-nowrap">
+                        ⚙️ 관리
+                      </a>
+                    <% } %>
+                  </div>
+                </div>
+
+                <% if (!canManage) { %>
+                  <p class="text-[11px] text-gray-400 text-center">🔒 코트 운영(시작/투입/점수반영/종료)은 마스터·관리자·모임장만 가능합니다.</p>
+                <% } %>
+
+                <% if (currentMeetup.status === 'recruiting' || currentMeetup.status === 'upcoming') { %>
+                  <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center space-y-2">
+                    <p class="text-sm font-bold text-amber-800">현재 팀원 모집 중인 모임입니다 🏸</p>
+                    <% if (canManage) { %>
+                      <form action="/meetups/<%= currentMeetup.id %>/status" method="POST">
+                        <input type="hidden" name="status" value="ongoing">
+                        <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow">
+                          ▶ 모임 시작하기
+                        </button>
+                      </form>
+                    <% } %>
+                  </div>
+                <% } else if (currentMeetup.status === 'ongoing') { %>
+                  <div class="space-y-3">
+                    <% courts.forEach(court => { %>
+                      <% 
+                        const teamAIsDuo = isDuoPair(court.teamA_p1, court.teamA_p2);
+                        const teamBIsDuo = isDuoPair(court.teamB_p1, court.teamB_p2);
+                      %>
+                      <div class="p-4 rounded-2xl border <%= court.status === 'playing' ? 'bg-white border-emerald-200 shadow-sm' : 'bg-gray-50/80 border-dashed border-gray-300' %>">
+                        <div class="flex justify-between items-center mb-2">
+                          <span class="font-bold text-gray-800 text-sm whitespace-nowrap"><%= court.name %></span>
+                          <span class="text-[11px] px-2.5 py-0.5 rounded-full font-bold whitespace-nowrap <%= court.status === 'playing' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' %>">
+                            <%= court.status === 'playing' ? '🔥 진행 중' : '⚡ 코트 여유' %>
+                          </span>
+                        </div>
+                        <% if (court.status === 'playing') { %>
+                          <div class="space-y-2">
+                            <div class="bg-gray-50 p-3 rounded-xl text-xs space-y-2">
+                              <div class="flex items-center justify-between gap-2">
+                                <div class="flex-1 bg-white p-2.5 rounded-xl border border-emerald-200 text-center shadow-sm">
+                                  <div class="text-[11px] font-bold text-emerald-700 mb-1">팀 A</div>
+                                  <div class="text-xs font-bold text-gray-800 space-y-0.5">
+                                    <div>
+                                      <% if (teamAIsDuo && court.teamA_p1 !== '-') { %>
+                                        <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold mr-1">듀오</span>
+                                      <% } %>
+                                      <%= court.teamA_p1 %> <span class="text-[10px] text-gray-500 font-normal">(<%= mmrMap[court.teamA_p1] || 1000 %>점)</span>
+                                    </div>
+                                    <div>
+                                      <% if (teamAIsDuo && court.teamA_p2 !== '-') { %>
+                                        <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold mr-1">듀오</span>
+                                      <% } %>
+                                      <%= court.teamA_p2 %> <span class="text-[10px] text-gray-500 font-normal">(<%= mmrMap[court.teamA_p2] || 1000 %>점)</span>
+                                    </div>
+                                  </div>
+                                  <div class="mt-2 pt-1 border-t border-emerald-100">
+                                    <span class="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2.5 py-0.5 rounded-full inline-block shadow-sm">
+                                      평균 MMR: <%= Math.round(((mmrMap[court.teamA_p1] || 1000) + (mmrMap[court.teamA_p2] || 1000)) / 2) %>점
+                                    </span>
+                                  </div>
+                                </div>
+
+                                <div class="shrink-0 font-black text-sm text-gray-400 px-1">
+                                  VS
+                                </div>
+
+                                <div class="flex-1 bg-white p-2.5 rounded-xl border border-teal-200 text-center shadow-sm">
+                                  <div class="text-[11px] font-bold text-teal-700 mb-1">팀 B</div>
+                                  <div class="text-xs font-bold text-gray-800 space-y-0.5">
+                                    <div>
+                                      <% if (teamBIsDuo && court.teamB_p1 !== '-') { %>
+                                        <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold mr-1">듀오</span>
+                                      <% } %>
+                                      <%= court.teamB_p1 %> <span class="text-[10px] text-gray-500 font-normal">(<%= mmrMap[court.teamB_p1] || 1000 %>점)</span>
+                                    </div>
+                                    <div>
+                                      <% if (teamBIsDuo && court.teamB_p2 !== '-') { %>
+                                        <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-bold mr-1">듀오</span>
+                                      <% } %>
+                                      <%= court.teamB_p2 %> <span class="text-[10px] text-gray-500 font-normal">(<%= mmrMap[court.teamB_p2] || 1000 %>점)</span>
+                                    </div>
+                                  </div>
+                                  <div class="mt-2 pt-1 border-t border-teal-100">
+                                    <span class="text-[10px] bg-teal-100 text-teal-800 font-extrabold px-2.5 py-0.5 rounded-full inline-block shadow-sm">
+                                      평균 MMR: <%= Math.round(((mmrMap[court.teamB_p1] || 1000) + (mmrMap[court.teamB_p2] || 1000)) / 2) %>점
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <% if (canManage) { %>
+                              <form action="/meetups/<%= currentMeetup.id %>/courts/<%= court.id %>/score" method="POST" class="grid grid-cols-2 gap-1.5">
+                                <input type="number" name="teamA_score" placeholder="팀A 점수" required class="bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 text-xs text-center">
+                                <input type="number" name="teamB_score" placeholder="팀B 점수" required class="bg-gray-50 border border-gray-200 rounded-xl px-2 py-1.5 text-xs text-center">
+                                <button type="submit" class="col-span-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs shadow transition-all">
+                                  경기 종료 및 점수 반영
+                                </button>
+                              </form>
+                            <% } %>
+                          </div>
+                        <% } else { %>
+                          <% if (canManage) { %>
+                            <div class="text-center py-1">
+                              <form action="/meetups/<%= currentMeetup.id %>/courts/<%= court.id %>/assign" method="POST">
+                                <button type="submit" class="bg-indigo-600 text-white font-bold px-4 py-1.5 rounded-xl text-xs shadow hover:bg-indigo-700 whitespace-nowrap">
+                                  스마트 대기조 자동 투입
+                                </button>
+                              </form>
+                            </div>
+                          <% } %>
+                        <% } %>
+                      </div>
+                    <% }) %>
+                  </div>
+
+                  <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-2">
+                    <div class="flex justify-between items-center">
+                      <h3 class="text-xs font-bold text-gray-700">실시간 대기자 명단 (출석 완료)</h3>
+                      <span class="text-xs font-bold text-indigo-600 whitespace-nowrap"><%= waitingMembers.length %>명 대기 중</span>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 pt-1">
+                      <% if (waitingMembers.length > 0) { %>
+                        <% waitingMembers.forEach(m => { %>
+                          <span class="bg-white px-2.5 py-1 rounded-xl text-xs font-medium text-gray-700 border border-gray-200 shadow-sm whitespace-nowrap">
+                            <%= m.name %> <span class="text-[10px] text-gray-400">(<%= m.level %>)</span>
+                          </span>
+                        <% }) %>
+                      <% } else { %>
+                        <p class="text-xs text-gray-400 py-1">현재 대기 중인 인원이 없습니다</p>
+                      <% } %>
+                    </div>
+                  </div>
+
+                  <% if (canManage) { %>
+                    <form action="/meetups/<%= currentMeetup.id %>/status" method="POST">
+                      <input type="hidden" name="status" value="ended">
+                      <button type="submit" class="w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-600 font-bold py-2.5 rounded-xl text-xs">
+                        모임 종료하기
+                      </button>
+                    </form>
+                  <% } %>
+                <% } else { %>
+                  <div class="bg-gray-50 border border-gray-200 rounded-2xl p-5 text-center space-y-2">
+                    <p class="text-sm font-bold text-gray-700">이 모임은 정상적으로 완료되었습니다.</p>
+                    <p class="text-xs text-gray-400">지난 경기 기록 및 랭킹에 결과가 반영되었습니다.</p>
+                  </div>
+                <% } %>
+              </div>
+            <% } %>
+          <% } %>
+        <% } %>
+
+        <!-- 3. 전체 채팅방 탭 -->
+        <% if (activeTab === 'global_chat') { %>
+          <div class="flex flex-col h-full -m-5 p-5 flex-1">
+            <div class="text-xs text-gray-500 mb-2">💬 모든 사용자가 자유롭게 소통하는 전체 채팅방입니다.</div>
+            <div class="p-3 overflow-y-auto space-y-3 flex-1 bg-gray-50 rounded-2xl border border-gray-200 mb-3 max-h-[450px]" id="global-chat-container">
+              <% if (globalChats && globalChats.length > 0) { %>
+                <% globalChats.forEach(c => { %>
+                  <% const isMe = currentUser && c.sender_name === currentUser.name; %>
+                  <div class="flex flex-col <%= isMe ? 'items-end' : 'items-start' %>">
+                    <div class="flex items-center space-x-1 mb-0.5">
+                      <span class="text-[11px] font-bold text-gray-700"><%= c.sender_nickname %></span>
+                      <span class="text-[9px] text-gray-400"><%= c.created_at ? c.created_at.replace('T', ' ').substring(11, 16) : '' %></span>
+                    </div>
+                    <div class="max-w-[80%] px-3.5 py-2 rounded-2xl text-xs shadow-sm <%= isMe ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none' %>">
+                      <%= c.message %>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="text-center py-20 text-gray-400 text-xs">
+                  전체 채팅 메시지가 없습니다.<br>첫 대화를 시작해보세요! 💬
+                </div>
+              <% } %>
+            </div>
+
+            <div>
+              <% if (currentUser) { %>
+                <form action="/global-chats" method="POST" class="flex gap-2">
+                  <input type="text" name="message" placeholder="전체 메시지를 입력하세요..." required autocomplete="off" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-emerald-500">
+                  <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-sm shrink-0">
+                    전송
+                  </button>
+                </form>
+                <script>
+                  window.addEventListener('DOMContentLoaded', () => {
+                    const gChatContainer = document.getElementById('global-chat-container');
+                    if(gChatContainer) {
+                      gChatContainer.scrollTop = gChatContainer.scrollHeight;
+                    }
+                  });
+                </script>
+              <% } else { %>
+                <div class="text-center py-2 text-xs text-gray-500">
+                  채팅에 참여하려면 로그인이 필요합니다. <a href="/?view=auth" class="text-emerald-600 font-bold underline">로그인하기</a>
+                </div>
+              <% } %>
+            </div>
+          </div>
+        <% } %>
+
+        <!-- 4. 랭킹 탭 -->
+        <% if (activeTab === 'ranking') { %>
+          <div class="space-y-4">
+            <div class="space-y-2.5">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-xs text-gray-500">🏅 실시간 MMR 및 승패 순위 (상위 5명)</span>
+                <a href="/?view=all_ranking" class="text-[11px] text-emerald-600 font-bold hover:underline">더보기 ></a>
+              </div>
+              <% if (rankingList && rankingList.length > 0) { %>
+                <% rankingList.forEach(user => { %>
+                  <div class="bg-white p-3.5 rounded-2xl border border-gray-100 flex items-center justify-between shadow-sm">
+                    <div class="flex items-center space-x-3">
+                      <span class="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 <%= user.rank === 1 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700' %>"><%= user.rank %></span>
+                      <div>
+                        <h3 class="font-bold text-gray-800 text-sm"><%= user.name %></h3>
+                        <p class="text-[11px] text-gray-400"><%= user.wins %>승 <%= user.losses %>패 (<%= user.winRate %>%)</p>
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <span class="text-xs font-bold text-emerald-600"><%= user.mmr %> 점</span>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="text-center py-6 text-gray-400 text-xs">등록된 경기 전적 데이터가 없습니다.</div>
+              <% } %>
+            </div>
+
+            <div class="space-y-2.5 pt-4 border-t border-gray-200">
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-xs text-gray-500">📜 모든 경기 기록 (최근 5경기)</span>
+                <a href="/?view=all_matches" class="text-[11px] text-emerald-600 font-bold hover:underline">더보기 ></a>
+              </div>
+              <% if (allMatches && allMatches.length > 0) { %>
+                <% allMatches.slice(0, 5).forEach(m => { %>
+                  <div class="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-1.5">
+                    <div class="flex justify-between items-center text-[11px] text-gray-400">
+                      <span>📅 <%= m.playedAt ? m.playedAt.replace('T', ' ').substring(0, 16) : '일자 미상' %></span>
+                      <span class="font-bold text-emerald-600">승리팀: 팀 <%= m.winner %></span>
+                    </div>
+                    <div class="text-xs space-y-1 pt-1 border-t border-gray-100">
+                      <div class="flex justify-between items-center"><span class="font-medium text-gray-700">팀A: <%= m.teamA_p1 %> & <%= m.teamA_p2 %></span><span class="font-bold text-gray-900"><%= m.teamA_score %>점</span></div>
+                      <div class="flex justify-between items-center"><span class="font-medium text-gray-700">팀B: <%= m.teamB_p1 %> & <%= m.teamB_p2 %></span><span class="font-bold text-gray-900"><%= m.teamB_score %>점</span></div>
+                    </div>
+                  </div>
+                <% }) %>
+              <% } else { %>
+                <div class="text-center py-6 text-gray-400 text-xs">기록된 경기 전적이 없습니다.</div>
+              <% } %>
+            </div>
+          </div>
+        <% } %>
+
+        <!-- 5. 내 프로필 탭 -->
+        <% if (activeTab === 'profile') { %>
+          <div class="space-y-4">
+            <% if (currentUser) { %>
+              <div class="bg-gradient-to-br from-emerald-500 to-teal-600 p-5 rounded-2xl text-white shadow-md space-y-4">
+                <div class="flex justify-between items-start">
+                  <div>
+                    <span class="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-semibold">
+                      <% if (currentUser.role === 'master') { %>👑 마스터<% } else if (currentUser.role === 'admin') { %>🛡️ 관리자<% } else { %>🌱 일반회원<% } %>
+                    </span>
+                    <h2 class="text-base font-bold mt-2">이름: <%= currentUser.name %> (<%= currentUser.age %>세 / <%= currentUser.gender %>)</h2>
+                    <p class="text-xs text-emerald-100 mt-0.5">당근 닉네임: <strong class="text-white"><%= currentUser.carrot_nickname %></strong></p>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <span class="text-xs text-emerald-100">현재 MMR</span>
+                    <div class="text-2xl font-black mt-0.5"><%= myStats ? myStats.mmr : 1000 %> 점</div>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 bg-white/10 p-3 rounded-xl text-center">
+                  <div>
+                    <span class="text-[10px] text-emerald-100 block">전적</span>
+                    <span class="text-xs font-bold"><%= myStats ? `${myStats.wins}승 ${myStats.losses}패` : '0승 0패' %></span>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-emerald-100 block">승률</span>
+                    <span class="text-xs font-bold"><%= myStats ? myStats.winRate : '0.0' %>%</span>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-emerald-100 block">당근 닉네임</span>
+                    <span class="text-xs font-bold truncate block"><%= currentUser.carrot_nickname %></span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                <div class="flex justify-between items-center mb-1">
+                  <h3 class="text-xs font-bold text-gray-700">🤝 누구와 파트너일 때 제일 승률이 좋았는가? (상위 5명)</h3>
+                  <% if (partnerStats && partnerStats.length > 5) { %>
+                    <a href="/?view=my_partners" class="text-[11px] text-emerald-600 font-bold hover:underline">더보기 ></a>
+                  <% } %>
+                </div>
+                <div class="space-y-2">
+                  <% if (partnerStats && partnerStats.length > 0) { %>
+                    <% partnerStats.slice(0, 5).forEach((p, idx) => { %>
+                      <div class="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl text-xs">
+                        <div class="flex items-center gap-2">
+                          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center justify-center text-[10px]"><%= idx + 1 %></span>
+                          <span class="font-bold text-gray-800"><%= p.partner %> 파트너</span>
+                        </div>
+                        <div class="text-right">
+                          <span class="font-bold text-emerald-600"><%= p.winRate %>%</span>
+                          <span class="text-gray-400 text-[11px] ml-1">(<%= p.wins %>승 <%= p.losses %>패)</span>
+                        </div>
+                      </div>
+                    <% }) %>
+                  <% } else { %>
+                    <p class="text-xs text-gray-400 text-center py-2">파트너와 함께 한 경기 전적이 아직 없습니다.</p>
+                  <% } %>
+                </div>
+              </div>
+
+              <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                <div class="flex justify-between items-center">
+                  <h3 class="text-xs font-bold text-gray-700">📜 내 최근 경기 전적 (최근 5경기)</h3>
+                  <a href="/?view=my_all_matches" class="text-[11px] text-emerald-600 font-bold hover:underline">더보기 ></a>
+                </div>
+                <div class="space-y-2">
+                  <% if (myRecentMatches && myRecentMatches.length > 0) { %>
+                    <% myRecentMatches.forEach(m => { %>
+                      <% 
+                        const isTeamA = [m.teamA_p1, m.teamA_p2].includes(currentUser.name);
+                        const isWin = (isTeamA && m.winner === 'A') || (!isTeamA && m.winner === 'B');
+                      %>
+                      <div class="flex justify-between items-center p-2.5 bg-gray-50 rounded-xl text-xs">
+                        <div class="truncate pr-2">
+                          <span class="font-bold px-2 py-0.5 rounded text-[10px] <%= isWin ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700' %>"><%= isWin ? '승리' : '패배' %></span>
+                          <span class="text-gray-600 ml-2 truncate">팀A: <%= m.teamA_p1 %>, <%= m.teamA_p2 %> vs 팀B: <%= m.teamB_p1 %>, <%= m.teamB_p2 %></span>
+                        </div>
+                        <div class="font-bold text-gray-800 shrink-0">
+                          (<%= m.teamA_score %> : <%= m.teamB_score %>)
+                        </div>
+                      </div>
+                    <% }) %>
+                  <% } else { %>
+                    <p class="text-xs text-gray-400 text-center py-2">기록된 최근 경기가 없습니다.</p>
+                  <% } %>
+                </div>
+              </div>
+
+              <% if (currentUser.role === 'master' || currentUser.role === 'admin') { %>
+                <a href="/?view=member_management" class="w-full bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-2xl text-xs shadow flex items-center justify-center gap-2 block text-center">
+                  👥 회원 정보 관리 페이지 이동
+                </a>
+              <% } %>
+            <% } else { %>
+              <div class="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center space-y-3">
+                <p class="text-xs font-bold text-gray-700">로그인 후 내 MMR과 승률을 확인해보세요!</p>
+                <a href="/?view=auth" class="inline-block bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-emerald-700">
+                  로그인 / 회원가입하기
+                </a>
+              </div>
+            <% } %>
+          </div>
+        <% } %>
+
+      </div>
+
+    <!-- 전체 파트너 승률 랭킹 뷰 -->
+    <% } else if (currentView === 'my_partners') { %>
+      <div class="flex flex-col h-full">
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white flex justify-between items-center">
+          <div>
+            <span class="text-xs text-emerald-100 font-semibold uppercase tracking-wider">파트너 분석</span>
+            <h1 class="text-xl font-bold mt-0.5">전체 파트너 승률 순위</h1>
+          </div>
+          <a href="/?tab=profile" class="bg-white/20 p-2 rounded-xl text-white">✕</a>
+        </div>
+
+        <div class="p-4 overflow-y-auto space-y-2.5 flex-1 bg-gray-50">
+          <% if (partnerStats && partnerStats.length > 0) { %>
+            <% partnerStats.forEach((p, idx) => { %>
+              <div class="bg-white p-3.5 rounded-2xl border border-gray-200 flex items-center justify-between shadow-sm">
+                <div class="flex items-center space-x-3">
+                  <span class="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 <%= idx === 0 ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700' %>"><%= idx + 1 %></span>
+                  <div>
+                    <h3 class="font-bold text-gray-800 text-sm"><%= p.partner %> 파트너</h3>
+                    <p class="text-[11px] text-gray-400"><%= p.wins %>승 <%= p.losses %>패 (<%= p.total %>경기)</p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span class="text-xs font-bold text-emerald-600"><%= p.winRate %>%</span>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="text-center py-12 text-gray-400 text-xs">기록된 파트너 전적이 없습니다.</div>
+          <% } %>
+        </div>
+
+        <div class="p-4 border-t border-gray-100 bg-white">
+          <a href="/?tab=profile" class="block text-center w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl text-xs shadow">
+            내 프로필로 돌아가기
+          </a>
+        </div>
+      </div>
+
+    <!-- 전체 랭킹 조회 뷰 -->
+    <% } else if (currentView === 'all_ranking') { %>
+      <div class="flex flex-col h-full">
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white flex justify-between items-center">
+          <div>
+            <span class="text-xs text-emerald-100 font-semibold uppercase tracking-wider">랭킹 명예의 전당</span>
+            <h1 class="text-xl font-bold mt-0.5">전체 유저 랭킹</h1>
+          </div>
+          <a href="/?tab=ranking" class="bg-white/20 p-2 rounded-xl text-white">✕</a>
+        </div>
+
+        <div class="p-4 overflow-y-auto space-y-2.5 flex-1 bg-gray-50">
+          <% if (fullRankingList && fullRankingList.length > 0) { %>
+            <% fullRankingList.forEach(user => { %>
+              <div class="bg-white p-3.5 rounded-2xl border border-gray-200 flex items-center justify-between shadow-sm">
+                <div class="flex items-center space-x-3">
+                  <span class="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 <%= user.rank === 1 ? 'bg-amber-100 text-amber-700' : user.rank === 2 ? 'bg-gray-200 text-gray-700' : user.rank === 3 ? 'bg-amber-50 text-amber-900' : 'bg-gray-100 text-gray-700' %>"><%= user.rank %></span>
+                  <div>
+                    <h3 class="font-bold text-gray-800 text-sm"><%= user.name %></h3>
+                    <p class="text-[11px] text-gray-400"><%= user.wins %>승 <%= user.losses %>패 (<%= user.winRate %>%)</p>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span class="text-xs font-bold text-emerald-600"><%= user.mmr %> 점</span>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="text-center py-12 text-gray-400 text-xs">등록된 랭킹 데이터가 없습니다.</div>
+          <% } %>
+        </div>
+
+        <div class="p-4 border-t border-gray-100 bg-white">
+          <a href="/?tab=ranking" class="block text-center w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-2xl text-xs shadow">
+            랭킹 탭으로 돌아가기
+          </a>
+        </div>
+      </div>
+
+    <!-- 전체 경기 기록 뷰 -->
+    <% } else if (currentView === 'all_matches') { %>
+      <div class="flex flex-col h-full">
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white flex justify-between items-center">
+          <div>
+            <span class="text-xs text-emerald-100 font-semibold uppercase tracking-wider">경기 기록실</span>
+            <h1 class="text-xl font-bold mt-0.5">전체 경기 일정 및 검색</h1>
+          </div>
+          <a href="/?tab=ranking" class="bg-white/20 p-2 rounded-xl text-white">✕</a>
+        </div>
+
+        <div class="p-4 border-b border-gray-100 bg-gray-50">
+          <form action="/" method="GET" class="flex gap-2">
+            <input type="hidden" name="view" value="all_matches">
+            <input type="date" name="matchDate" value="<%= matchDateQuery || '' %>" class="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs">
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm">
+              날짜 검색
+            </button>
+            <% if (matchDateQuery) { %>
+              <a href="/?view=all_matches" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-3 py-2 rounded-xl text-xs flex items-center justify-center">초기화</a>
+            <% } %>
+          </form>
+        </div>
+
+        <div class="p-4 overflow-y-auto space-y-2.5 flex-1">
+          <% if (allMatches && allMatches.length > 0) { %>
+            <% allMatches.forEach(m => { %>
+              <div class="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-1.5">
+                <div class="flex justify-between items-center text-[11px] text-gray-400">
+                  <span>📅 <%= m.playedAt ? m.playedAt.replace('T', ' ').substring(0, 16) : '일자 미상' %></span>
+                  <span class="font-bold text-emerald-600">승리팀: 팀 <%= m.winner %></span>
+                </div>
+                <div class="text-xs space-y-1 pt-1 border-t border-gray-100">
+                  <div class="flex justify-between items-center"><span class="font-medium text-gray-700">팀A: <%= m.teamA_p1 %> & <%= m.teamA_p2 %></span><span class="font-bold text-gray-900"><%= m.teamA_score %>점</span></div>
+                  <div class="flex justify-between items-center"><span class="font-medium text-gray-700">팀B: <%= m.teamB_p1 %> & <%= m.teamB_p2 %></span><span class="font-bold text-gray-900"><%= m.teamB_score %>점</span></div>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="text-center py-12 text-gray-400 text-xs">해당 날짜에 기록된 경기가 없습니다.</div>
+          <% } %>
+        </div>
+
+        <div class="p-4 border-t border-gray-100 bg-white">
+          <a href="/?tab=ranking" class="block text-center w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-2xl text-xs shadow">
+            랭킹 탭으로 돌아가기
+          </a>
+        </div>
+      </div>
+
+    <!-- 내 프로필 전용 전체 경기 기록 뷰 -->
+    <% } else if (currentView === 'my_all_matches') { %>
+      <div class="flex flex-col h-full">
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white flex justify-between items-center">
+          <div>
+            <span class="text-xs text-emerald-100 font-semibold uppercase tracking-wider">나의 경기 기록실</span>
+            <h1 class="text-xl font-bold mt-0.5">내 전체 경기 전적</h1>
+          </div>
+          <a href="/?tab=profile" class="bg-white/20 p-2 rounded-xl text-white">✕</a>
+        </div>
+
+        <div class="p-4 border-b border-gray-100 bg-gray-50">
+          <form action="/" method="GET" class="flex gap-2">
+            <input type="hidden" name="view" value="my_all_matches">
+            <input type="date" name="matchDate" value="<%= matchDateQuery || '' %>" class="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs">
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm">
+              날짜 검색
+            </button>
+            <% if (matchDateQuery) { %>
+              <a href="/?view=my_all_matches" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold px-3 py-2 rounded-xl text-xs flex items-center justify-center">초기화</a>
+            <% } %>
+          </form>
+        </div>
+
+        <div class="p-4 overflow-y-auto space-y-2.5 flex-1">
+          <% if (myAllMatches && myAllMatches.length > 0) { %>
+            <% myAllMatches.forEach(m => { %>
+              <% 
+                const isTeamA = [m.teamA_p1, m.teamA_p2].includes(currentUser.name);
+                const isWin = (isTeamA && m.winner === 'A') || (!isTeamA && m.winner === 'B');
+              %>
+              <div class="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-1.5">
+                <div class="flex justify-between items-center text-[11px] text-gray-400">
+                  <span>📅 <%= m.playedAt ? m.playedAt.replace('T', ' ').substring(0, 16) : '일자 미상' %></span>
+                  <span class="font-bold px-2 py-0.5 rounded text-[10px] <%= isWin ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700' %>"><%= isWin ? '승리' : '패배' %></span>
+                </div>
+                <div class="text-xs space-y-1 pt-1 border-t border-gray-100">
+                  <div class="flex justify-between items-center"><span class="font-medium text-gray-700">팀A: <%= m.teamA_p1 %> & <%= m.teamA_p2 %></span><span class="font-bold text-gray-900"><%= m.teamA_score %>점</span></div>
+                  <div class="flex justify-between items-center"><span class="font-medium text-gray-700">팀B: <%= m.teamB_p1 %> & <%= m.teamB_p2 %></span><span class="font-bold text-gray-900"><%= m.teamB_score %>점</span></div>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="text-center py-12 text-gray-400 text-xs">해당 조건에 일치하는 내 경기 기록이 없습니다.</div>
+          <% } %>
+        </div>
+
+        <div class="p-4 border-t border-gray-100 bg-white">
+          <a href="/?tab=profile" class="block text-center w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-2xl text-xs shadow">
+            내 프로필로 돌아가기
+          </a>
+        </div>
+      </div>
+
+    <% } else if (currentView === 'meetup_detail') { %>
+      <div class="flex flex-col h-full">
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white flex justify-between items-center">
+          <div class="truncate pr-2">
+            <span class="text-xs text-emerald-100 font-semibold uppercase tracking-wider">모임 상세</span>
+            <h1 class="text-xl font-bold mt-0.5 truncate">
+              <%= currentMeetup ? currentMeetup.title : '모임 없음' %>
+            </h1>
+          </div>
+          <a href="/?tab=list" class="bg-white/20 p-2 rounded-xl text-white shrink-0">✕</a>
+        </div>
+
+        <% if (!currentMeetup) { %>
+          <div class="text-center py-10 text-gray-400 text-xs p-5">모임을 찾을 수 없습니다.</div>
+        <% } else { %>
+          <% const isJoinedDetail = currentUser && members.some(m => m.name === currentUser.name); %>
+          <div class="p-5 overflow-y-auto space-y-4 flex-1">
+
+            <div class="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm space-y-2.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] px-2.5 py-1 rounded-full font-bold bg-amber-100 text-amber-700">
+                  <%= currentMeetup.status === 'recruiting' || currentMeetup.status === 'upcoming' ? '모집중' : currentMeetup.status === 'ongoing' ? '진행 중' : '모임 완료' %>
+                </span>
+                <span class="text-xs text-gray-500">참여자 <strong class="text-emerald-600"><%= members.length %>명</strong></span>
+              </div>
+              <div class="text-xs text-gray-600 space-y-1 pt-1">
+                <p>📅 <%= currentMeetup.date %></p>
+                <p>📍 <%= currentMeetup.location %></p>
+                <p>🏸 코트 <%= currentMeetup.courtCount %>개 · 정원 <%= currentMeetup.maxPeople %>명 · 참가비 <%= currentMeetup.fee %></p>
+                <p>🧑‍💼 모임장: <span class="font-semibold text-gray-800"><%= organizer ? (organizer.name + ' (' + organizer.carrot_nickname + ')') : '지정되지 않음' %></span></p>
+              </div>
+              <% if (currentMeetup.note) { %>
+                <p class="text-[11px] text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg">📌 비고: <%= currentMeetup.note %></p>
+              <% } %>
+            </div>
+
+            <a href="/?meetupId=<%= currentMeetup.id %>&view=chat" class="w-full bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 rounded-2xl text-xs shadow flex items-center justify-center gap-1.5 block text-center transition">
+              💬 모임 실시간 채팅방 입장
+            </a>
+
+            <% if (currentUser) { %>
+              <div class="p-4 rounded-2xl border shadow-sm <%= isJoinedDetail ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-gray-200' %> flex items-center justify-between">
+                <div class="pr-2 truncate">
+                  <h3 class="text-xs font-bold text-gray-800 truncate"><%= currentUser.name %>님 (<%= currentUser.carrot_nickname %>)</h3>
+                  <p class="text-[11px] text-gray-500 mt-0.5"><%= isJoinedDetail ? '현재 이 모임에 참여 중입니다.' : '아직 이 모임에 참여하지 않았습니다.' %></p>
+                </div>
+                <% if (isJoinedDetail) { %>
+                  <form action="/meetups/<%= currentMeetup.id %>/leave" method="POST">
+                    <input type="hidden" name="redirectView" value="meetup_detail">
+                    <button type="submit" class="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold px-3.5 py-2 rounded-xl transition whitespace-nowrap">
+                      모임 나가기
+                    </button>
+                  </form>
+                <% } else { %>
+                  <form action="/meetups/<%= currentMeetup.id %>/join" method="POST">
+                    <input type="hidden" name="redirectView" value="meetup_detail">
+                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-sm transition whitespace-nowrap">
+                      모임 참여하기
+                    </button>
+                  </form>
+                <% } %>
+              </div>
+            <% } else { %>
+              <div class="bg-gray-50 border border-gray-200 rounded-2xl p-4 text-center space-y-2">
+                <p class="text-xs font-bold text-gray-700">참여하려면 로그인이 필요합니다.</p>
+                <a href="/?view=auth" class="inline-block bg-emerald-600 text-white font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-emerald-700">
+                  로그인 / 회원가입하기
+                </a>
+              </div>
+            <% } %>
+
+            <div class="bg-gray-50 p-4 rounded-2xl border border-gray-200 space-y-2">
+              <h3 class="text-xs font-bold text-gray-700">참여자 명단</h3>
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                <% if (members.length > 0) { %>
+                  <% members.forEach(m => { %>
+                    <span class="bg-white px-2.5 py-1 rounded-xl text-xs font-medium text-gray-700 border border-gray-200 shadow-sm whitespace-nowrap">
+                      <%= m.name %> <span class="text-[10px] text-gray-400">(<%= m.level %>)</span>
+                    </span>
+                  <% }) %>
+                <% } else { %>
+                  <p class="text-xs text-gray-400 py-1">아직 참여자가 없습니다.</p>
+                <% } %>
+              </div>
+            </div>
+
+            <% if (canManage) { %>
+              <a href="/?meetupId=<%= currentMeetup.id %>&view=admin_attendance" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-3 rounded-2xl text-xs shadow flex items-center justify-center gap-1 block text-center">
+                ⚙️ 출석/회원 관리
+              </a>
+              
+              <form action="/meetups/<%= currentMeetup.id %>/delete" method="POST" onsubmit="return confirm('정말 이 모임을 삭제하시겠습니까? 관련된 모든 데이터(출석, 코트, 경기 기록, 채팅 등)가 영구 삭제됩니다.');">
+                <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-2xl text-xs shadow transition mt-1">
+                  🗑️ 모임 삭제하기
+                </button>
+              </form>
+            <% } %>
+          </div>
+
+          <div class="p-4 border-t border-gray-100 bg-white">
+            <a href="/?meetupId=<%= currentMeetup.id %>&tab=courts" class="block text-center w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-2xl text-xs shadow">
+              🏸 코트 현황 보기
+            </a>
+          </div>
+        <% } %>
+      </div>
+
+    <% } else if (currentView === 'chat') { %>
+      <div class="flex flex-col h-full">
+        <div class="bg-gradient-to-r from-emerald-600 to-teal-700 p-5 text-white flex justify-between items-center">
+          <div class="truncate pr-2">
+            <span class="text-xs text-emerald-100 font-semibold uppercase tracking-wider">모임 실시간 채팅방</span>
+            <h1 class="text-xl font-bold mt-0.5 truncate"><%= currentMeetup ? currentMeetup.title : '모임' %></h1>
+          </div>
+          <a href="/?meetupId=<%= currentMeetup ? currentMeetup.id : 1 %>&view=meetup_detail" class="bg-white/20 p-2 rounded-xl text-white shrink-0">✕</a>
+        </div>
+
+        <div class="p-4 overflow-y-auto space-y-3 flex-1 bg-gray-50" id="chat-container">
+          <% if (chats && chats.length > 0) { %>
+            <% chats.forEach(c => { %>
+              <% const isMe = currentUser && c.sender_name === currentUser.name; %>
+              <div class="flex flex-col <%= isMe ? 'items-end' : 'items-start' %>">
+                <div class="flex items-center space-x-1 mb-0.5">
+                  <span class="text-[11px] font-bold text-gray-700"><%= c.sender_nickname %></span>
+                  <span class="text-[9px] text-gray-400"><%= c.created_at ? c.created_at.replace('T', ' ').substring(11, 16) : '' %></span>
+                </div>
+                <div class="max-w-[80%] px-3.5 py-2 rounded-2xl text-xs shadow-sm <%= isMe ? 'bg-emerald-600 text-white rounded-tr-none' : 'bg-white text-gray-800 border border-gray-200 rounded-tl-none' %>">
+                  <%= c.message %>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <div class="text-center py-20 text-gray-400 text-xs">
+              아직 채팅 메시지가 없습니다.<br>첫 대화를 시작해보세요! 💬
+            </div>
+          <% } %>
+        </div>
+
+        <div class="p-3 border-t border-gray-100 bg-white">
+          <% if (currentUser) { %>
+            <form action="/meetups/<%= currentMeetup ? currentMeetup.id : 1 %>/chats" method="POST" class="flex gap-2">
+              <input type="text" name="message" placeholder="메시지를 입력하세요..." required autocomplete="off" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs focus:outline-none focus:border-emerald-500">
+              <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl text-xs shadow-sm shrink-0">
+                전송
+              </button>
+            </form>
+            <script>
+              window.addEventListener('DOMContentLoaded', () => {
+                const chatContainer = document.getElementById('chat-container');
+                if(chatContainer) {
+                  chatContainer.scrollTop = chatContainer.scrollHeight;
+                }
+              });
+            </script>
+          <% } else { %>
+            <div class="text-center py-2 text-xs text-gray-500">
+              채팅에 참여하려면 로그인이 필요합니다. <a href="/?view=auth" class="text-emerald-600 font-bold underline">로그인하기</a>
+            </div>
+          <% } %>
+        </div>
+      </div>
+
+    <% } else if (currentView === 'auth') { %>
+      <div class="flex flex-col h-full">
+        <div class="bg-gradient-to-r from-slate-800 to-slate-900 p-5 text-white flex justify-between items-center">
+          <h1 class="text-xl font-bold">계정 인증</h1>
+          <a href="/" class="bg-white/20 p-2 rounded-xl text-white">✕</a>
+        </div>
+
+        <div class="flex border-b border-gray-200 bg-gray-100">
+          <a href="/?view=auth&authTab=login" class="flex-1 py-2.5 text-xs font-bold text-center border-b-2 transition-all <%= authTab === 'login' ? 'border-emerald-600 text-emerald-600 bg-white' : 'border-transparent text-gray-500' %>">로그인</a>
+          <a href="/?view=auth&authTab=signup" class="flex-1 py-2.5 text-xs font-bold text-center border-b-2 transition-all <%= authTab === 'signup' ? 'border-emerald-600 text-emerald-600 bg-white' : 'border-transparent text-gray-500' %>">회원가입</a>
+        </div>
+
+        <div class="p-5 overflow-y-auto space-y-4 flex-1">
+          <% if (authTab === 'login') { %>
+            <form action="/auth/login" method="POST" class="bg-white p-5 rounded-2xl border border-gray-200 space-y-3.5 shadow-sm">
+              <h3 class="text-sm font-bold text-gray-800">🔑 계정 로그인</h3>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">아이디</label>
+                <input type="text" name="username" required placeholder="아이디 입력" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">비밀번호</label>
+                <input type="password" name="password" required placeholder="비밀번호 입력" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-xs">
+              </div>
+              <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs shadow transition-all mt-2">
+                로그인하기
+              </button>
+            </form>
+          <% } else { %>
+            <form action="/auth/signup" method="POST" class="bg-white p-5 rounded-2xl border border-gray-200 space-y-3 shadow-sm">
+              <h3 class="text-sm font-bold text-gray-800">✨ 신규 회원가입</h3>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">아이디</label>
+                <input type="text" name="username" required placeholder="아이디 입력 (wjcho4293은 마스터)" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">비밀번호</label>
+                <input type="password" name="password" required placeholder="비밀번호 입력" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">이름 (실명)</label>
+                <input type="text" name="name" required placeholder="실명 입력" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs">
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">나이</label>
+                  <input type="number" name="age" required placeholder="나이" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-600 mb-1">성별</label>
+                  <select name="gender" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs">
+                    <option value="남">남</option>
+                    <option value="여">여</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-600 mb-1">당근 닉네임</label>
+                <input type="text" name="carrot_nickname" required placeholder="당근마켓 닉네임" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs">
+              </div>
+              <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs shadow transition-all mt-2">
+                회원가입 완료
+              </button>
+            </form>
+          <% } %>
+        </div>
+      </div>
+
+    <!-- 회원 정보 관리 뷰 (마스터 전용 MMR 초기화 기능 포함) -->
+    <% } else if (currentView === 'member_management') { %>
+      <div class="flex flex-col h-full">
+        <div class="bg-gradient-to-r from-slate-900 to-slate-800 p-5 text-white flex justify-between items-center">
+          <div>
+            <span class="text-xs text-amber-400 font-semibold">보안 권한 구역</span>
+            <h1 class="text-xl font-bold">회원 정보 관리</h1>
+          </div>
+          <a href="/?tab=profile" class="bg-white/20 p-2 rounded-xl text-white">✕</a>
+        </div>
+
+        <div class="p-4 overflow-y-auto space-y-3 flex-1">
+          <% if (!currentUser || (currentUser.role !== 'master' && currentUser.role !== 'admin')) { %>
+            <div class="bg-red-50 text-red-700 p-5 rounded-2xl text-center text-xs font-bold">
+              접근 권한이 없습니다. (마스터 또는 관리자만 조회 가능)
+            </div>
+          <% } else { %>
+            
+            <% if (currentUser.role === 'master') { %>
+              <div class="bg-amber-50 border border-amber-200 p-4 rounded-2xl space-y-2 mb-3 shadow-sm">
+                <div class="text-xs font-bold text-amber-900">👑 마스터 전용 MMR 시스템 관리</div>
+                <form action="/admin/reset-all-mmr" method="POST" onsubmit="return confirm('⚠️ 경고: 모든 회원의 MMR과 전적이 초기화됩니다. 정말 진행하시겠습니까?');">
+                  <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2.5 rounded-xl text-xs shadow transition">
+                    전체 회원 MMR 및 전적 초기화
+                  </button>
+                </form>
+              </div>
+            <% } %>
+
+            <div class="text-xs text-gray-500 px-1">전체 회원 목록 (<%= allUsers.length %>명)</div>
+            <div class="space-y-2.5">
+              <% allUsers.forEach(u => { %>
+                <div class="bg-white p-3.5 rounded-2xl border border-gray-200 shadow-sm space-y-2">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <span class="font-bold text-gray-900 text-sm"><%= u.name %></span>
+                      <span class="text-xs text-gray-400 ml-1">(<%= u.age %>세)</span>
+                      <div class="text-xs text-gray-600 mt-0.5">ID: <span class="font-mono text-emerald-700"><%= u.username %></span></div>
+                      <div class="text-xs text-gray-600">당근닉네임: <span class="font-semibold text-orange-600"><%= u.carrot_nickname %></span></div>
+                    </div>
+                    <div>
+                      <span class="text-[10px] px-2.5 py-1 rounded-full font-bold <%= u.role === 'master' ? 'bg-amber-100 text-amber-800' : u.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-gray-100 text-gray-700' %>">
+                        <%= u.role === 'master' ? '마스터' : u.role === 'admin' ? '관리자' : '일반' %>
+                      </span>
+                    </div>
+                  </div>
+                  <% if (currentUser.role === 'master' && u.id !== currentUser.id) { %>
+                    <form action="/admin/users/<%= u.id %>/role" method="POST" class="flex gap-2 pt-2 border-t border-gray-100">
+                      <select name="role" class="bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs flex-1">
+                        <option value="member" <%= u.role === 'member' ? 'selected' : '' %>>일반회원</option>
+                        <option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>관리자</option>
+                        <option value="master" <%= u.role === 'master' ? 'selected' : '' %>>마스터</option>
+                      </select>
+                      <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap">권한변경</button>
+                    </form>
+                  <% } %>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
+        </div>
+
+        <div class="p-4 border-t border-gray-100 bg-white">
+          <a href="/?tab=profile" class="block text-center w-full bg-slate-900 hover:bg-black text-white font-bold py-3 rounded-2xl text-xs shadow">
+            내 프로필로 돌아가기
+          </a>
+        </div>
+      </div>
+    <% } %>
+
+  </div>
+
+</body>
+</html>
